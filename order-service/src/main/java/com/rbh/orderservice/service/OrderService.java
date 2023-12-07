@@ -3,10 +3,12 @@ package com.rbh.orderservice.service;
 import com.rbh.orderservice.dto.InventoryResponse;
 import com.rbh.orderservice.dto.OrderLineItemsDto;
 import com.rbh.orderservice.dto.OrderRequest;
+import com.rbh.orderservice.event.OrderPlacedEvent;
 import com.rbh.orderservice.model.Order;
 import com.rbh.orderservice.model.OrderLineItems;
 import com.rbh.orderservice.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
@@ -20,6 +22,7 @@ public class OrderService {
 
     private final OrderRepository orderRepository;
     private final WebClient.Builder webClientBuilder;
+    private final KafkaTemplate<String, OrderPlacedEvent> kafkaTemplate;
 
     public String placeOrder(OrderRequest orderRequest) {
         Order order = new Order();
@@ -45,6 +48,7 @@ public class OrderService {
 
         if (allInStock) {
             orderRepository.save(order);
+            kafkaTemplate.send("notificationTopic", new OrderPlacedEvent(order.getOrderNumber()));
             return "Order Placed Successfully";
         }
         else {
